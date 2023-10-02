@@ -4,6 +4,7 @@
 #include <vector>
 #include <stdlib.h>
 #include <chrono>
+#include <omp.h>
 
 #ifndef NSIZE
 #define NSIZE 10ull
@@ -25,8 +26,11 @@ using vector_type = std::vector<value_type>;
 
 void set_fixed(vector_type& vector, const fixed_values& fixed_values)
 {
-    for(const auto [index, value] : fixed_values)
+    std::size_t i;
+    #pragma omp parallel for
+    for(i = 0ull; i < fixed_values.size(); ++i)
     {
+        const auto [index, value] = fixed_values[i];
         vector[index] = value;
     }
 }
@@ -54,7 +58,10 @@ vector_type smooth_vector(const vector_type& v, const fixed_values& fixed_values
         curr_iteration[0] = v[0];
         curr_iteration[size - 1] = v[size - 1];
 
-        for (std::size_t i = 1ull; i < size - 1; ++i) 
+        std::size_t i;
+
+        #pragma omp parallel for
+        for (i = 1ull; i < size - 1; ++i) 
         {
             curr_iteration[i] = (prev_iteration[i - 1] + prev_iteration[i + 1]) / 2;
         }
@@ -110,6 +117,8 @@ int main(int argc, const char* argv[])
         std::cout << '\n';
 #endif
 
+    omp_set_num_threads(N);
+
     fixed_values fixed_values {{ {0, 1.}, {n >> 1, 1.}, {n - 1, 1.} }};
     set_fixed(vector, fixed_values);
 
@@ -120,11 +129,10 @@ int main(int argc, const char* argv[])
     }
     std::cout << '\n';
 
-std::cout << "before\n";
     auto start_time = std::chrono::high_resolution_clock::now();
     vector_type result = smooth_vector(vector, fixed_values, m);
     auto end_time = std::chrono::high_resolution_clock::now();
-    std::cout << "after\n";
+
 #ifdef OUTPUT_RESULT
     std::cout << "Result: ";
     for(const auto val : result)
